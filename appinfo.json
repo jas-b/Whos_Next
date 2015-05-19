@@ -1,0 +1,30 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "jas.b",
+    "longName": "Whos_turn",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/whos_turn.png",
+                "menuIcon": true,
+                "name": "IMAGE_MENU",
+                "type": "png"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "Whos_turn",
+    "targetPlatforms": [
+        "aplite",
+        "basalt"
+    ],
+    "uuid": "4d22e6d2-4c99-4e9e-9730-764b0a684db4",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
