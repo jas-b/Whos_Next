@@ -1,19 +1,15 @@
 #ifdef PBL_COLOR
 /*
 The MIT License (MIT)
-
-Copyright (c) 2015 Jason Brand
-
+Copyright (c) 2015 jas-b
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,6 +28,7 @@ const bool CS_LOGGING = true;
 const uint8_t CS_COLOR_OFFSET = 192;
 const uint8_t CS_X_SIZE[] = {18, 36};
 const uint8_t CS_Y_SIZE[] = {18, 36};
+const uint8_t CS_RADIUS[] = {3, 6};
 uint8_t choice;
 uint8_t color_set = 0;
 static char disp_text[24];
@@ -178,7 +175,10 @@ void cs_draw_update_proc(Layer *layer, GContext *context) {
 
   for (int i = 0; i < CS_NUMCOLORS[color_set]; i++) {
     graphics_context_set_fill_color(context, (GColor){.argb = cs_order[color_set][i] + CS_COLOR_OFFSET});
-    graphics_fill_rect(context, (GRect){.origin = {cs_x[color_set][i], cs_y[color_set][i]}, .size = {CS_X_SIZE[color_set], CS_Y_SIZE[color_set]}}, 0, GCornerNone);
+    graphics_fill_rect(context, (GRect){
+      .origin = {cs_x[color_set][i]+1, cs_y[color_set][i]+1}, 
+      .size = {CS_X_SIZE[color_set]-2, CS_Y_SIZE[color_set]-2}}, 
+      CS_RADIUS[color_set], GCornersAll);
   }
 
   cs_info("Drawing Selection Box");
@@ -188,11 +188,18 @@ void cs_draw_update_proc(Layer *layer, GContext *context) {
   cs_info(buff);
 
   if (choice < 32) {
-    graphics_context_set_stroke_color(context, GColorWhite);
+    graphics_context_set_stroke_color(context, GColorBlack);
   } else {
     graphics_context_set_stroke_color(context, GColorBlack);
   }
-  graphics_draw_rect(context,(GRect){.origin = {cs_x[color_set][choice], cs_y[color_set][choice]}, .size = {CS_X_SIZE[color_set], CS_Y_SIZE[color_set]}});
+  graphics_draw_round_rect(context, (GRect){
+    .origin = {cs_x[color_set][choice], cs_y[color_set][choice]}, 
+    .size = {CS_X_SIZE[color_set], CS_Y_SIZE[color_set]}}, 
+    CS_RADIUS[color_set] + 1);
+  graphics_draw_round_rect(context, (GRect){
+    .origin = {cs_x[color_set][choice]+1, cs_y[color_set][choice]+1}, 
+    .size = {CS_X_SIZE[color_set]-2, CS_Y_SIZE[color_set]-2}}, 
+    CS_RADIUS[color_set]);
 }
 
 void cswindow_destroy(CSWindow *window) {
@@ -209,10 +216,16 @@ void cswindow_show(const CSWindow *window, bool animated) {
 
 void cs_switch_sets(ClickRecognizerRef recognizer, void * context) {
 	CSWindow *w = (CSWindow*)context;
+
+  int curent_color = cs_order[color_set][choice] + CS_COLOR_OFFSET;
+  
   if (color_set == 0) {
     color_set = 1;
   } else {
     color_set = 0;
+  }
+  for (choice = 0; choice <= CS_NUMCOLORS[color_set]; choice++) {
+    if (cs_order[color_set][choice] == curent_color - CS_COLOR_OFFSET) break;
   }
   if (choice > CS_NUMCOLORS[color_set]) {
     choice = 0;
