@@ -204,6 +204,9 @@ void handle_CS_close_edit(int color) {
   for (int i = 0; i < num_names; i++) {
     text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
     text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+    if (last_int[order[i]] > 0 ) {
+      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+    }
   }
 }
 
@@ -421,8 +424,8 @@ static void window_load(Window *window) {
     text_layer_set_font(name_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
     text_layer_set_font(last_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24));
 #ifdef PBL_COLOR
-    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[i]});
-    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[i]});
+    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
+    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
 #else
     text_layer_set_background_color(name_layer[i], GColorBlack);
     text_layer_set_background_color(last_layer[i], GColorBlack);
@@ -432,7 +435,7 @@ static void window_load(Window *window) {
       text_layer_set_text_color(last_layer[i], GColorWhite);
     } else {
 #ifdef PBL_COLOR
-    text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[i]});
+    text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
 #else
     text_layer_set_text_color(last_layer[i], GColorBlack);
 #endif
