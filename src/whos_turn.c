@@ -13,15 +13,16 @@ const char * keyboardSet1[] = {T3_LAYOUT_UPPERCASE, T3_LAYOUT_LOWERCASE};
 #define NUM_DEFAULT 4
 #define NAME_KEY 2
 #define LAST_KEY 30
+#define DATE_KEY 40
 #ifdef PBL_COLOR
 #define COLOR_KEY 20
 #define COLOR_DEFAULT 203
 #endif
 
 #ifdef PBL_COLOR
-#define NUM_MODES 6
+#define NUM_MODES 7
 #else
-#define NUM_MODES 5
+#define NUM_MODES 6
 #endif
 
 static Window *window;
@@ -39,6 +40,7 @@ int cookie = COOKIE_DEFAULT;
 int mode = 0;
 int editname;
 int selectname = 0;
+int date_format = 0;
 int x[MAX_NUM_NAMES], y[MAX_NUM_NAMES];
 const int x_size = 80, y_size = 23;
 
@@ -72,6 +74,7 @@ static char* MODES[] = {
   "ADD",
   "DELETE",
   "RESET",
+  "DATE FORMAT",
 };
 
 static int power(int n) {
@@ -122,11 +125,36 @@ static void write_names() {
   }
 }
 
+static void write_dates() {
+  char buffer[]=" X1/XX";
+  APP_LOG(APP_LOG_LEVEL_INFO, "last_int");
+  for (int i = 0; i < num_names; i++) {
+    snprintf(buffer, 6, "%d", last_int[i]);
+    APP_LOG(APP_LOG_LEVEL_INFO, buffer);
+    if (last_int[i] > 0) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "last_int[i] > 0");
+      int last_m = last_int[i] / 100;
+      int last_d = last_int[i] - last_m * 100;
+      snprintf(buffer, 6, "%d", last_m);
+      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
+      snprintf(buffer, 6, "%d", last_d);
+      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
+      if (date_format == 0) {
+        snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
+      } else {
+        snprintf(last_text[i], 5, "%d/%d", last_m, last_d);
+      }
+    } else {
+      APP_LOG(APP_LOG_LEVEL_INFO, "else");
+      last_text[i] = "-/-";
+      APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
+    }
+    APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
+  }
+}
+
 static void name_select() {
   APP_LOG(APP_LOG_LEVEL_INFO, "name_select");
-  char buffer[]=" X1/XX";
-//  snprintf(buffer, 6, "%d", selectname);
-//  APP_LOG(APP_LOG_LEVEL_INFO, buffer);
   int swap;
 
   time_t now = time(NULL);
@@ -141,43 +169,28 @@ static void name_select() {
     order[j] = order[j + 1];
     order[j + 1] = swap;
   }
-  APP_LOG(APP_LOG_LEVEL_INFO, "last_int");
-  for (int i = 0; i < num_names; i++) {
-    snprintf(buffer, 6, "%d", last_int[i]);
-    APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-    if (last_int[i] > 0) {
-      APP_LOG(APP_LOG_LEVEL_INFO, "last_int[i] > 0");
-      int last_m = last_int[i] / 100;
-      int last_d = last_int[i] - last_m * 100;
-      snprintf(buffer, 6, "%d", last_m);
-      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-      snprintf(buffer, 6, "%d", last_d);
-      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-      snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
-    } else {
-      APP_LOG(APP_LOG_LEVEL_INFO, "else");
-      last_text[i] = "-/-";
-      APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
-    }
-    APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
-  }
+  
+  write_dates();
 
   write_names();
 }
 
 void handle_T3_close_edit(const char * text) {
   APP_LOG(APP_LOG_LEVEL_INFO, "handle_T3_close_edit");
+  APP_LOG(APP_LOG_LEVEL_INFO, text);
 //  if (sizeof(name_text[editname]) > sizeof(text)) {
 //    strcpy(name_text[editname], text);
 //  } else {
 //    strcpy(name_text[editname], "");
 //    strncat(name_text[editname], text, sizeof(name_text[editname]));
 //  }
-  strncpy(name_text[editname], text, 10);
-//  mode = 0;
-  text_layer_set_text(text_layer, MODES[mode]);
-  for (int i = 0; i < num_names; i++) {
-    text_layer_set_text(name_layer[i], name_text[order[i]]);
+  if (strncmp(text, "\0", 1) != 0) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "blank");
+    strncpy(name_text[editname], text, 10);
+    text_layer_set_text(text_layer, MODES[mode]);
+    for (int i = 0; i < num_names; i++) {
+      text_layer_set_text(name_layer[i], name_text[order[i]]);
+    }
   }
 }
 
@@ -328,6 +341,16 @@ static void select_single_click_handler(ClickRecognizerRef recognizer, Window *w
     break;
     
 #ifdef PBL_COLOR
+    case 6: //DATE
+#else
+    case 5: //DATE
+#endif
+      date_format = (date_format == 0) ? 1 : 0;
+      write_names();
+      write_dates();
+    break;
+  
+#ifdef PBL_COLOR
     case 2: //COLOR
       color_select();
     break;
@@ -364,7 +387,9 @@ static void window_load(Window *window) {
 
   num_names = persist_exists(NUM_KEY) ? persist_read_int(NUM_KEY) : NUM_DEFAULT;
   cookie = persist_exists(COOKIE_KEY) ? persist_read_int(COOKIE_KEY) : COOKIE_DEFAULT;
+  if (persist_exists(DATE_KEY)) date_format = persist_read_int(DATE_KEY);
 
+  
 #ifdef PBL_COLOR
   for (int i = 0; i < MAX_NUM_NAMES; i++) {
     name_col[i] = COLOR_DEFAULT;
@@ -381,7 +406,11 @@ static void window_load(Window *window) {
       if (last_int[i] > 0) {
         int last_m = last_int[i] / 100;
         int last_d = last_int[i] - last_m * 100;
-        snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
+        if (date_format == 0) {
+          snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
+        } else {
+          snprintf(last_text[i], 5, "%d/%d", last_m, last_d);
+        }
       }
     }
 #ifdef PBL_COLOR
@@ -473,6 +502,7 @@ void window_unload(Window *window) {
   
   persist_write_int(COOKIE_KEY, cookie);
   persist_write_int(NUM_KEY, num_names);
+  persist_write_int(DATE_KEY, date_format);
   for (int i = 0; i < num_names; i++) {
     persist_write_string(NAME_KEY + i, name_text[i]);
     if (last_int[i] > 0) persist_write_int(LAST_KEY + i, last_int[i]);
