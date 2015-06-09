@@ -4,12 +4,12 @@
         ""
     ],
     "companyName": "jas.b",
-    "longName": "Whos_turn",
+    "longName": "Whos_Next",
     "projectType": "native",
     "resources": {
         "media": [
             {
-                "file": "images/whos_turn.png",
+                "file": "images/whos_next.png",
                 "menuIcon": true,
                 "name": "IMAGE_MENU",
                 "type": "png"
@@ -17,13 +17,13 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Whos_turn",
+    "shortName": "Whos_Next",
     "targetPlatforms": [
         "aplite",
         "basalt"
     ],
     "uuid": "4d22e6d2-4c99-4e9e-9730-764b0a684db4",
-    "versionLabel": "1.1",
+    "versionLabel": "1.2",
     "watchapp": {
         "watchface": false
     }

@@ -217,7 +217,7 @@ void handle_CS_close_edit(int color) {
   for (int i = 0; i < num_names; i++) {
     text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
     text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-    if (last_int[order[i]] > 0 ) {
+    if (last_int[order[i]] == 0 ) {
       text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
     }
   }
