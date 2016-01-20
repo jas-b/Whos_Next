@@ -1,8 +1,10 @@
 #include <pebble.h>
 
 #include "T3Window.h"
+#ifdef PBL_COLOR
 #include "color_sel_lib.h"
-
+#endif
+ 
 const char * keyboardSet1[] = {T3_LAYOUT_UPPERCASE, T3_LAYOUT_LOWERCASE};
 
 #define MAX_NUM_NAMES 6
@@ -20,16 +22,16 @@ const char * keyboardSet1[] = {T3_LAYOUT_UPPERCASE, T3_LAYOUT_LOWERCASE};
 #endif
 
 #ifdef PBL_COLOR
-#define NUM_MODES 7
+#define NUM_MODES 8
 #else
 #define NUM_MODES 6
 #endif
 
 static Window *window;
 
-// This is a simple menu layer
 static TextLayer *text_layer;
 //static TextLayer *debug_layer;
+static Layer *list_layer[MAX_NUM_NAMES];
 static TextLayer *name_layer[MAX_NUM_NAMES];
 static TextLayer *last_layer[MAX_NUM_NAMES];
 static Layer *draw_layer;
@@ -54,12 +56,12 @@ static char* name_text[] = {
 };
 int last_int[] = {0, 0, 0, 0, 0, 0};
 static char* last_text[] = {
-  " X1/XX",
-  " X2/XX",
-  " X3/XX",
-  " X4/XX",
-  " X5/XX",
-  " X6/XX",
+  "      ",
+  "      ",
+  "      ",
+  "      ",
+  "      ",
+  "      ",
 };
 #ifdef PBL_COLOR
 static int name_col[MAX_NUM_NAMES];
@@ -67,6 +69,9 @@ static int name_col[MAX_NUM_NAMES];
 
 static char* MODES[] = {
   "SELECT",
+#ifdef PBL_COLOR
+  "VOICE EDIT",
+#endif
   "EDIT",
 #ifdef PBL_COLOR
   "COLOR",
@@ -77,6 +82,11 @@ static char* MODES[] = {
   "DATE FORMAT",
 };
 
+#ifdef PBL_COLOR
+static DictationSession *dictation_session;
+static char dict_text[512];
+#endif
+
 static int power(int n) {
   int buf = 1;
   for (int i = 0; i < n; i++) {
@@ -86,19 +96,16 @@ static int power(int n) {
 }
 
 static void draw_update_proc(Layer *layer, GContext *context) {
-  int linewidth = 1;
-  for (int i = 0; i < linewidth; i++) {
-    graphics_context_set_stroke_color(context, GColorWhite);
-    graphics_draw_rect(context, (GRect) {
-      .origin = { x[selectname] + i - 5, y[selectname] + i + 7}, 
-      .size = { x_size - 2 * i, y_size - 2 * i - 1} 
+  graphics_context_set_stroke_color(context, GColorWhite);
+  graphics_draw_rect(context, (GRect) {
+    .origin = { x[selectname] - 5, y[selectname] + 7}, 
+    .size = { x_size, y_size - 2} 
     });
-  }
 }
 
 static void write_names() {
   APP_LOG(APP_LOG_LEVEL_INFO, "write_names");
-//  char buf[]=" X1/XX";
+//  char buf[]="      ";
   cookie = 0;
   for (int i = 0; i < num_names; i++) {
     cookie += order[i] * power(num_names - 1 - i);
@@ -106,22 +113,26 @@ static void write_names() {
 //    snprintf(buf, 6, "%d", last_int[order[i]]);
 //    APP_LOG(APP_LOG_LEVEL_INFO, buf);
 //    APP_LOG(APP_LOG_LEVEL_INFO, last_text[order[i]]);
-    text_layer_set_text(last_layer[i], last_text[order[i]]);
+//    if (last_int[i] > 0) {
+//      text_layer_set_text(last_layer[i], last_text[order[i]]);
+//    } else {
+//      text_layer_set_text(last_layer[i], " ");
+//    }
+/*
     if (last_int[order[i]] > 0) {
       text_layer_set_text_color(last_layer[i], GColorWhite);
+//      text_layer_set_text(last_layer[i], "");
     } else {
 #ifdef PBL_COLOR
-      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
 #else
-      text_layer_set_text_color(last_layer[i], GColorBlack);
+//      text_layer_set_text_color(last_layer[i], GColorBlack);
 #endif
     }
+*/
 //    snprintf(buf, 6, "%d", order[i]);
 //    APP_LOG(APP_LOG_LEVEL_INFO, buf);
-#ifdef PBL_COLOR
-    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
-    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-#endif
+    layer_mark_dirty(list_layer[i]);
   }
 }
 
@@ -140,13 +151,13 @@ static void write_dates() {
       snprintf(buffer, 6, "%d", last_d);
       APP_LOG(APP_LOG_LEVEL_INFO, buffer);
       if (date_format == 0) {
-        snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
+        snprintf(last_text[i], 6, "%d/%d", last_d, last_m);
       } else {
-        snprintf(last_text[i], 5, "%d/%d", last_m, last_d);
+        snprintf(last_text[i], 6, "%d/%d", last_m, last_d);
       }
     } else {
       APP_LOG(APP_LOG_LEVEL_INFO, "else");
-      last_text[i] = "-/-";
+      last_text[i] = "";
       APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
     }
     APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
@@ -163,7 +174,7 @@ static void name_select() {
   int month = current_time->tm_mon + 1;
   int mday = current_time->tm_mday;
   last_int[order[selectname]] = month * 100 + mday;
-//  last_text[order[selectname]] = "XX/XX";
+  
   for (int j = selectname; j < num_names - 1; j++) {
     swap = order[j];
     order[j] = order[j + 1];
@@ -175,15 +186,37 @@ static void name_select() {
   write_names();
 }
 
+#ifdef PBL_COLOR
+/******************************* Dictation API ********************************/
+
+static void dictation_session_callback(DictationSession *session, DictationSessionStatus status, 
+                                       char *transcription, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "dictation_session_callback");
+  APP_LOG(APP_LOG_LEVEL_INFO, transcription);
+  editname = order[selectname];
+
+  if(status == DictationSessionStatusSuccess) {
+    // Display the dictated text
+    snprintf(dict_text, sizeof(dict_text), "%s", transcription);
+//    text_layer_set_text(s_output_layer, dict_text);
+      strncpy(name_text[editname], dict_text, 10);
+      text_layer_set_text(text_layer, MODES[mode]);
+      for (int i = 0; i < num_names; i++) {
+        text_layer_set_text(name_layer[i], name_text[order[i]]);
+      }
+//  } else {
+    // Display the reason for any error
+//    static char s_failed_buff[128];
+//    snprintf(s_failed_buff, sizeof(s_failed_buff), "Transcription failed.\n\nError ID:\n%d", (int)status);  
+//    text_layer_set_text(s_output_layer, s_failed_buff);
+  }
+}
+#endif
+
 void handle_T3_close_edit(const char * text) {
   APP_LOG(APP_LOG_LEVEL_INFO, "handle_T3_close_edit");
   APP_LOG(APP_LOG_LEVEL_INFO, text);
-//  if (sizeof(name_text[editname]) > sizeof(text)) {
-//    strcpy(name_text[editname], text);
-//  } else {
-//    strcpy(name_text[editname], "");
-//    strncat(name_text[editname], text, sizeof(name_text[editname]));
-//  }
+  
   if (strncmp(text, "\0", 1) != 0) {
     APP_LOG(APP_LOG_LEVEL_INFO, "blank");
     strncpy(name_text[editname], text, 10);
@@ -208,19 +241,20 @@ static void name_edit() {
 }
 
 #ifdef PBL_COLOR
-
 void handle_CS_close_edit(int color) {
   APP_LOG(APP_LOG_LEVEL_INFO, "handle_CS_close_edit");
   name_col[editname] = color;
 //  mode = 0;
   text_layer_set_text(text_layer, MODES[mode]);
+/*
   for (int i = 0; i < num_names; i++) {
-    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
-    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+//    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
+//    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
     if (last_int[order[i]] == 0 ) {
-      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
     }
   }
+*/
 }
 
 static void color_select() {
@@ -232,7 +266,6 @@ static void color_select() {
   
   cswindow_show(myCSWindow, true);
 }
-
 #endif
 
 static void name_add() {
@@ -284,7 +317,7 @@ static void name_delete() {
   for (int i = num_names; i < MAX_NUM_NAMES; i++) {
     text_layer_set_text(name_layer[i], "");
 #ifdef PBL_COLOR
-    text_layer_set_background_color(name_layer[i], (GColor){.argb = COLOR_DEFAULT});
+//    text_layer_set_background_color(name_layer[i], (GColor){.argb = COLOR_DEFAULT});
 #endif
   }
 //  setting_reset();
@@ -300,7 +333,6 @@ char message[]="XXXXXXXXXX";
   snprintf(message, 10, "mode: %d", mode);
   APP_LOG(APP_LOG_LEVEL_INFO, message);
   text_layer_set_text(text_layer, MODES[mode]);
-
 }
 
 static void select_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
@@ -312,49 +344,41 @@ static void select_single_click_handler(ClickRecognizerRef recognizer, Window *w
     case 0: //SELECT
       name_select();
     break;
-    case 1: //EDIT
-      name_edit();
-    break;
     
 #ifdef PBL_COLOR
-    case 3: //ADD
-#else
-    case 2: //ADD
+    case 1: //VOICE
+      dictation_session_start(dictation_session);
+    break;
 #endif
+    
+    case PBL_IF_COLOR_ELSE(2, 1): //EDIT
+      name_edit();
+    break;
+
+#ifdef PBL_COLOR
+    case 3: //COLOR
+      color_select();
+    break;
+#endif
+
+    case PBL_IF_COLOR_ELSE(4,2): //ADD
       name_add();
     break;
     
-#ifdef PBL_COLOR
-    case 4: //DELETE
-#else
-    case 3: //DELETE
-#endif
+    case PBL_IF_COLOR_ELSE(5,3): //DELETE
       name_delete();
     break;
     
-#ifdef PBL_COLOR
-    case 5: //RESET
-#else
-    case 4: //RESET
-#endif
+    case PBL_IF_COLOR_ELSE(6,4): //RESET
       setting_reset();
     break;
     
-#ifdef PBL_COLOR
-    case 6: //DATE
-#else
-    case 5: //DATE
-#endif
+    case PBL_IF_COLOR_ELSE(7,5): //DATE
       date_format = (date_format == 0) ? 1 : 0;
       write_names();
       write_dates();
     break;
-  
-#ifdef PBL_COLOR
-    case 2: //COLOR
-      color_select();
-    break;
-#endif
+    
   }
 }
 
@@ -378,6 +402,38 @@ static void click_config_provider(void *context) {
 	window_long_click_subscribe(BUTTON_ID_SELECT, 0, (ClickHandler)select_long_click_handler, NULL);
 }
 
+static void list_update_proc(Layer *layer, GContext *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "list_update_proc");
+  GRect bounds = layer_get_bounds(layer);
+  for (int i = num_names-1; i >= 0; i--) {
+//  for (int i = MAX_NUM_NAMES-1; i >= 0; i--) {
+    if (layer == list_layer[i]) {
+      char message[]="XXXXXXXXXX";
+      snprintf(message, 10, "i: %d", i);
+      APP_LOG(APP_LOG_LEVEL_INFO, message);
+#ifdef PBL_COLOR
+      graphics_context_set_fill_color(context, (GColor){.argb = name_col[order[i]]});
+#else
+      graphics_context_set_fill_color(context, GColorBlack);
+#endif
+      graphics_fill_rect(context, bounds, 0, GCornerNone);
+      graphics_context_set_text_color(context, GColorWhite);
+      graphics_draw_text(context, name_text[order[i]], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(PBL_IF_RECT_ELSE(10, 30),0,PBL_IF_RECT_ELSE(124, 120),29), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+
+    if (last_int[order[i]] > 0) {
+//      text_layer_set_text_color(last_layer[i], GColorWhite);
+      graphics_draw_text(context, last_text[order[i]], fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(PBL_IF_RECT_ELSE(10, 30),0,PBL_IF_RECT_ELSE(124, 120),29), GTextOverflowModeFill, GTextAlignmentRight, NULL);
+//    } else {
+#ifdef PBL_COLOR
+//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
+#else
+//      text_layer_set_text_color(last_layer[i], GColorBlack);
+#endif
+      }
+    }
+  }
+}
+
 static void window_load(Window *window) {
   char message[]="XXXXXXXXXX";
   snprintf(message, 10, "mode1: %d", mode);
@@ -389,29 +445,36 @@ static void window_load(Window *window) {
   cookie = persist_exists(COOKIE_KEY) ? persist_read_int(COOKIE_KEY) : COOKIE_DEFAULT;
   if (persist_exists(DATE_KEY)) date_format = persist_read_int(DATE_KEY);
 
-  
+
 #ifdef PBL_COLOR
   for (int i = 0; i < MAX_NUM_NAMES; i++) {
     name_col[i] = COLOR_DEFAULT;
   }
 #endif
-  
+
   for (int i = 0; i < num_names; i++) {
     if (persist_exists(NAME_KEY + i)) {
       persist_read_string(NAME_KEY + i, name_text[i], 10);
     }
     if (persist_exists(LAST_KEY + i)) {
       last_int[i] = persist_read_int(LAST_KEY + i);
+
+/*
+
 //      last_int[i] = 528 + i;
       if (last_int[i] > 0) {
         int last_m = last_int[i] / 100;
         int last_d = last_int[i] - last_m * 100;
+        
         if (date_format == 0) {
-          snprintf(last_text[i], 5, "%d/%d", last_d, last_m);
+          snprintf(last_text[i], 6, "%d/%d", last_d, last_m);
         } else {
-          snprintf(last_text[i], 5, "%d/%d", last_m, last_d);
+          snprintf(last_text[i], 6, "%d/%d", last_m, last_d);
         }
       }
+
+*/
+
     }
 #ifdef PBL_COLOR
     name_col[i] = persist_exists(COLOR_KEY + i) ? persist_read_int(COLOR_KEY + i) : COLOR_DEFAULT;
@@ -436,7 +499,7 @@ static void window_load(Window *window) {
   window_set_background_color(window, GColorBlack);
 #endif
 
-  x[0] = 10;
+  x[0] = PBL_IF_ROUND_ELSE(30, 10);
   y[0] = y_size;
   for (int i = 1; i < MAX_NUM_NAMES; i++) {
     x[i] = x[i-1];
@@ -446,12 +509,19 @@ static void window_load(Window *window) {
   APP_LOG(APP_LOG_LEVEL_INFO, message);
   
   for (int i = MAX_NUM_NAMES-1; i >= 0; i--) {
-    name_layer[i] = text_layer_create((GRect){.origin = {x[i], y[i] }, .size = {x_size, 29}});
-    last_layer[i] = text_layer_create((GRect){.origin = {0, y[i] }, .size = {144, 29}});
+    list_layer[i] = layer_create((GRect){.origin = {0, y[i] }, .size = {bounds.size.w, 29}});
+    layer_set_update_proc(list_layer[i], list_update_proc);
+    name_layer[i] = text_layer_create((GRect){.origin = {x[i], 0 }, .size = {x_size, 29}});
+    last_layer[i] = text_layer_create((GRect){.origin = {0, 0 }, .size = {bounds.size.w-x[i], 29}});
     text_layer_set_text_alignment(name_layer[i], GTextAlignmentLeft);
     text_layer_set_text_alignment(last_layer[i], GTextAlignmentRight);
     text_layer_set_font(name_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
     text_layer_set_font(last_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24));
+    
+    text_layer_set_background_color(name_layer[i], GColorClear);
+    text_layer_set_background_color(last_layer[i], GColorClear);
+
+/*
 #ifdef PBL_COLOR
     text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
     text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
@@ -459,7 +529,10 @@ static void window_load(Window *window) {
     text_layer_set_background_color(name_layer[i], GColorBlack);
     text_layer_set_background_color(last_layer[i], GColorBlack);
 #endif
+*/
     text_layer_set_text_color(name_layer[i], GColorWhite);
+    text_layer_set_text_color(last_layer[i], GColorWhite);
+/*
     if (last_int[order[i]] > 0 ) {
       text_layer_set_text_color(last_layer[i], GColorWhite);
     } else {
@@ -469,18 +542,20 @@ static void window_load(Window *window) {
     text_layer_set_text_color(last_layer[i], GColorBlack);
 #endif
     }
+*/
     if (i < num_names) {
-      text_layer_set_text(name_layer[i], name_text[order[i]]);
-      text_layer_set_text(last_layer[i], last_text[order[i]]);
+//      text_layer_set_text(name_layer[i], name_text[order[i]]);
+//    text_layer_set_text(last_layer[i], last_text[order[i]]);
     }
-    layer_add_child(window_layer, text_layer_get_layer(last_layer[i]));
-    layer_add_child(window_layer, text_layer_get_layer(name_layer[i]));
+    layer_add_child(window_layer, list_layer[i]);
+//    layer_add_child(list_layer[i], text_layer_get_layer(last_layer[i]));
+//    layer_add_child(list_layer[i], text_layer_get_layer(name_layer[i]));
   }
 
   snprintf(message, 10, "mode4: %d", mode);
   APP_LOG(APP_LOG_LEVEL_INFO, message);
 
-  text_layer = text_layer_create((GRect){.origin = {0, 0}, .size = {144, 29}});
+  text_layer = text_layer_create((GRect){.origin = {0, 0}, .size = {bounds.size.w, 29}});
   text_layer_set_text(text_layer, MODES[mode]);
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
@@ -496,36 +571,50 @@ static void window_load(Window *window) {
   layer_set_update_proc(draw_layer, draw_update_proc);
   layer_add_child(window_layer, draw_layer);
   
+  write_dates();
+  write_names();
 }
 
 void window_unload(Window *window) {
-  
+  char message[]="XXXXXXXXXXXXXXXXXXXX";
+
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload1");
   persist_write_int(COOKIE_KEY, cookie);
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload2");
   persist_write_int(NUM_KEY, num_names);
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload3");
   persist_write_int(DATE_KEY, date_format);
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload4");
   for (int i = 0; i < num_names; i++) {
+    snprintf(message, 10, "unload:%d", i);
+    APP_LOG(APP_LOG_LEVEL_INFO, message);
+
     persist_write_string(NAME_KEY + i, name_text[i]);
     if (last_int[i] > 0) persist_write_int(LAST_KEY + i, last_int[i]);
 #ifdef PBL_COLOR
     persist_write_int(COLOR_KEY + i, name_col[i]);
 #endif
   }
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload4.5");
   
   
   text_layer_destroy(text_layer);
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload6");
   for (int i = 0; i < MAX_NUM_NAMES; i++) {
+    layer_destroy(list_layer[i]);
     text_layer_destroy(name_layer[i]);
     text_layer_destroy(last_layer[i]);
   }
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload7");
   layer_destroy(draw_layer);
+  APP_LOG(APP_LOG_LEVEL_INFO, "unload8");
 
 }
 
-int main(void) {
+void init(void) {
   window = window_create();
-#ifdef PBL_COLOR
-#else
-  window_set_fullscreen(window, true);
+#ifdef PBL_BW
+//  window_set_fullscreen(window, true);
 #endif
   // Setup the window handlers
   window_set_window_handlers(window, (WindowHandlers) {
@@ -533,9 +622,27 @@ int main(void) {
     .unload = window_unload,
   });
 
-  window_stack_push(window, true /* Animated */);
+  window_stack_push(window, true /* Animated */);  
+  
+#ifdef PBL_COLOR
+// Create new dictation session
+dictation_session = dictation_session_create(sizeof(dict_text), 
+                                               dictation_session_callback, NULL);
+#endif
 
-  app_event_loop();
+}
+
+void deinit(void) {
+#ifdef PBL_COLOR
+    dictation_session_destroy(dictation_session);
+#endif
 
   window_destroy(window);
+  APP_LOG(APP_LOG_LEVEL_INFO, "finished");
+}
+
+int main(void) {
+  init();
+  app_event_loop();
+  deinit();
 }

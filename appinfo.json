@@ -4,7 +4,7 @@
         ""
     ],
     "companyName": "jas.b",
-    "longName": "Whos_Next",
+    "longName": "Who's Next",
     "projectType": "native",
     "resources": {
         "media": [
@@ -12,18 +12,19 @@
                 "file": "images/whos_next.png",
                 "menuIcon": true,
                 "name": "IMAGE_MENU",
-                "type": "png"
+                "type": "bitmap"
             }
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Whos_Next",
+    "shortName": "Who's Next",
     "targetPlatforms": [
         "aplite",
-        "basalt"
+        "basalt",
+        "chalk"
     ],
     "uuid": "4d22e6d2-4c99-4e9e-9730-764b0a684db4",
-    "versionLabel": "1.2",
+    "versionLabel": "1.4",
     "watchapp": {
         "watchface": false
     }

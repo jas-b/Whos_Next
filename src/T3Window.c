@@ -164,7 +164,7 @@ T3Window * t3window_create(const char ** set1, uint8_t count1,
 	
 	w->window = window_create();
 	#if PBL_PLATFORM_APLITE
-	window_set_fullscreen(w->window, true);
+//	window_set_fullscreen(w->window, true);
 	#endif
 	#if PBL_BW
 	window_set_background_color(w->window, GColorWhite);
@@ -173,9 +173,10 @@ T3Window * t3window_create(const char ** set1, uint8_t count1,
 		(ClickConfigProvider)_t3_clickConfigProvider, w);
 
 	Layer * windowLayer = window_get_root_layer(w->window);
+  GRect wbounds = layer_get_frame(windowLayer);
 	
 	// Create input label
-	w->inputLayer = layer_create_with_data(GRect(4, 4, 136, 64), sizeof(_t3_InputData));
+	w->inputLayer = layer_create_with_data(GRect(PBL_IF_ROUND_ELSE(20, 4), PBL_IF_ROUND_ELSE(32, 4), wbounds.size.w - PBL_IF_ROUND_ELSE(40, 8), PBL_IF_ROUND_ELSE(32, 64)), sizeof(_t3_InputData));
 	_t3_InputData * data = layer_get_data(w->inputLayer);
 	data->t3window = w;
 	layer_set_update_proc(w->inputLayer, _t3_drawInput);
@@ -504,7 +505,7 @@ void _t3_drawInput(Layer * layer, GContext * context) {
 	bounds.size.w -= 4;
 	bounds.size.h -= 4;
 	graphics_draw_text(context, data->t3window->inputString, fonts_get_system_font(FONT_KEY_GOTHIC_24),
-		bounds, GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+		bounds, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 }
 
 void _t3_drawKey(Layer * layer, GContext * context) {
