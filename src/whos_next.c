@@ -32,8 +32,6 @@ static Window *window;
 static TextLayer *text_layer;
 //static TextLayer *debug_layer;
 static Layer *list_layer[MAX_NUM_NAMES];
-static TextLayer *name_layer[MAX_NUM_NAMES];
-static TextLayer *last_layer[MAX_NUM_NAMES];
 static Layer *draw_layer;
 
 int num_names = NUM_DEFAULT;
@@ -46,7 +44,7 @@ int date_format = 0;
 int x[MAX_NUM_NAMES], y[MAX_NUM_NAMES];
 const int x_size = 80, y_size = 23;
 
-static char* name_text[] = {
+static char *name_text[] = {
   "Name 1    ",
   "Name 2    ",
   "Name 3    ",
@@ -55,19 +53,19 @@ static char* name_text[] = {
   "Name 6    ",
 };
 int last_int[] = {0, 0, 0, 0, 0, 0};
-static char* last_text[] = {
-  "      ",
-  "      ",
-  "      ",
-  "      ",
-  "      ",
-  "      ",
+static char *last_text[] = {
+  "       ",
+  "       ",
+  "       ",
+  "       ",
+  "       ",
+  "       ",
 };
 #ifdef PBL_COLOR
 static int name_col[MAX_NUM_NAMES];
 #endif
 
-static char* MODES[] = {
+static char *MODES[] = {
   "SELECT",
 #ifdef PBL_COLOR
   "VOICE EDIT",
@@ -105,62 +103,11 @@ static void draw_update_proc(Layer *layer, GContext *context) {
 
 static void write_names() {
   APP_LOG(APP_LOG_LEVEL_INFO, "write_names");
-//  char buf[]="      ";
   cookie = 0;
   for (int i = 0; i < num_names; i++) {
     cookie += order[i] * power(num_names - 1 - i);
-    text_layer_set_text(name_layer[i], name_text[order[i]]);
-//    snprintf(buf, 6, "%d", last_int[order[i]]);
-//    APP_LOG(APP_LOG_LEVEL_INFO, buf);
-//    APP_LOG(APP_LOG_LEVEL_INFO, last_text[order[i]]);
-//    if (last_int[i] > 0) {
-//      text_layer_set_text(last_layer[i], last_text[order[i]]);
-//    } else {
-//      text_layer_set_text(last_layer[i], " ");
-//    }
-/*
-    if (last_int[order[i]] > 0) {
-      text_layer_set_text_color(last_layer[i], GColorWhite);
-//      text_layer_set_text(last_layer[i], "");
-    } else {
-#ifdef PBL_COLOR
-//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-#else
-//      text_layer_set_text_color(last_layer[i], GColorBlack);
-#endif
-    }
-*/
-//    snprintf(buf, 6, "%d", order[i]);
-//    APP_LOG(APP_LOG_LEVEL_INFO, buf);
+    
     layer_mark_dirty(list_layer[i]);
-  }
-}
-
-static void write_dates() {
-  char buffer[]=" X1/XX";
-  APP_LOG(APP_LOG_LEVEL_INFO, "last_int");
-  for (int i = 0; i < num_names; i++) {
-    snprintf(buffer, 6, "%d", last_int[i]);
-    APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-    if (last_int[i] > 0) {
-      APP_LOG(APP_LOG_LEVEL_INFO, "last_int[i] > 0");
-      int last_m = last_int[i] / 100;
-      int last_d = last_int[i] - last_m * 100;
-      snprintf(buffer, 6, "%d", last_m);
-      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-      snprintf(buffer, 6, "%d", last_d);
-      APP_LOG(APP_LOG_LEVEL_INFO, buffer);
-      if (date_format == 0) {
-        snprintf(last_text[i], 6, "%d/%d", last_d, last_m);
-      } else {
-        snprintf(last_text[i], 6, "%d/%d", last_m, last_d);
-      }
-    } else {
-      APP_LOG(APP_LOG_LEVEL_INFO, "else");
-      last_text[i] = "";
-      APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
-    }
-    APP_LOG(APP_LOG_LEVEL_INFO, last_text[i]);
   }
 }
 
@@ -173,6 +120,7 @@ static void name_select() {
 
   int month = current_time->tm_mon + 1;
   int mday = current_time->tm_mday;
+//  mday =21;
   last_int[order[selectname]] = month * 100 + mday;
   
   for (int j = selectname; j < num_names - 1; j++) {
@@ -180,8 +128,6 @@ static void name_select() {
     order[j] = order[j + 1];
     order[j + 1] = swap;
   }
-  
-  write_dates();
 
   write_names();
 }
@@ -192,18 +138,14 @@ static void name_select() {
 static void dictation_session_callback(DictationSession *session, DictationSessionStatus status, 
                                        char *transcription, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "dictation_session_callback");
-  APP_LOG(APP_LOG_LEVEL_INFO, transcription);
+  APP_LOG(APP_LOG_LEVEL_INFO, "%s", transcription);
   editname = order[selectname];
 
   if(status == DictationSessionStatusSuccess) {
     // Display the dictated text
     snprintf(dict_text, sizeof(dict_text), "%s", transcription);
-//    text_layer_set_text(s_output_layer, dict_text);
-      strncpy(name_text[editname], dict_text, 10);
-      text_layer_set_text(text_layer, MODES[mode]);
-      for (int i = 0; i < num_names; i++) {
-        text_layer_set_text(name_layer[i], name_text[order[i]]);
-      }
+    strncpy(name_text[editname], dict_text, 10);
+    text_layer_set_text(text_layer, MODES[mode]);
 //  } else {
     // Display the reason for any error
 //    static char s_failed_buff[128];
@@ -215,15 +157,12 @@ static void dictation_session_callback(DictationSession *session, DictationSessi
 
 void handle_T3_close_edit(const char * text) {
   APP_LOG(APP_LOG_LEVEL_INFO, "handle_T3_close_edit");
-  APP_LOG(APP_LOG_LEVEL_INFO, text);
+  APP_LOG(APP_LOG_LEVEL_INFO, "%s", text);
   
   if (strncmp(text, "\0", 1) != 0) {
     APP_LOG(APP_LOG_LEVEL_INFO, "blank");
     strncpy(name_text[editname], text, 10);
     text_layer_set_text(text_layer, MODES[mode]);
-    for (int i = 0; i < num_names; i++) {
-      text_layer_set_text(name_layer[i], name_text[order[i]]);
-    }
   }
 }
 
@@ -246,15 +185,6 @@ void handle_CS_close_edit(int color) {
   name_col[editname] = color;
 //  mode = 0;
   text_layer_set_text(text_layer, MODES[mode]);
-/*
-  for (int i = 0; i < num_names; i++) {
-//    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
-//    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-    if (last_int[order[i]] == 0 ) {
-//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-    }
-  }
-*/
 }
 
 static void color_select() {
@@ -275,7 +205,6 @@ static void name_add() {
   cookie = 0;
   for (int i = 0; i < num_names; i++) {
     cookie += order[i] * power(num_names - 1 - i);
-    text_layer_set_text(name_layer[i], name_text[order[i]]);
   }
 }
 
@@ -285,13 +214,6 @@ static void setting_reset() {
   for (int i = 0; i < num_names; i++) {
     order[i] = i;
     cookie += order[i] * power(num_names -1 - i);
-  }
-  for (int i = 0; i < MAX_NUM_NAMES; i++) {
-    if (i < num_names) {
-      text_layer_set_text(name_layer[i], name_text[order[i]]);
-    } else {
-      text_layer_set_text(name_layer[i], "");
-    }
   }
   selectname = 0;
   layer_mark_dirty(draw_layer);
@@ -303,7 +225,6 @@ static void name_delete() {
   if (order[selectname] != num_names) {
     strncpy(name_text[order[selectname]], name_text[num_names], 10);
   }
-//  text_layer_set_text(name_layer[num_names], "X");
   int j = 0;
   for (int i = 0; i < num_names; i++) {
     if (order[i] == num_names) j = 1;
@@ -312,33 +233,22 @@ static void name_delete() {
   cookie = 0;
   for (int i = 0; i < num_names; i++) {
     cookie += order[i] * power(num_names - 1 - i);
-    text_layer_set_text(name_layer[i], name_text[order[i]]);
   }
-  for (int i = num_names; i < MAX_NUM_NAMES; i++) {
-    text_layer_set_text(name_layer[i], "");
-#ifdef PBL_COLOR
-//    text_layer_set_background_color(name_layer[i], (GColor){.argb = COLOR_DEFAULT});
-#endif
-  }
-//  setting_reset();
   layer_mark_dirty(draw_layer);
 }
 
 static void select_long_click_handler(ClickRecognizerRef recognizer, Window *window) {
-char message[]="XXXXXXXXXX";
+
   mode++;
   if (mode > (NUM_MODES - 1)) mode = 0;
-  snprintf(message, 10, "NUM: %d", NUM_MODES);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
-  snprintf(message, 10, "mode: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
+  APP_LOG(APP_LOG_LEVEL_INFO, "NUM: %d", NUM_MODES);
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode: %d", mode);
   text_layer_set_text(text_layer, MODES[mode]);
 }
 
 static void select_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
-  char message[]="XXXXXXXXXX";
-  snprintf(message, 10, "mode: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
+  
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode: %d", mode);
 
   switch (mode) {
     case 0: //SELECT
@@ -376,7 +286,6 @@ static void select_single_click_handler(ClickRecognizerRef recognizer, Window *w
     case PBL_IF_COLOR_ELSE(7,5): //DATE
       date_format = (date_format == 0) ? 1 : 0;
       write_names();
-      write_dates();
     break;
     
   }
@@ -405,12 +314,10 @@ static void click_config_provider(void *context) {
 static void list_update_proc(Layer *layer, GContext *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "list_update_proc");
   GRect bounds = layer_get_bounds(layer);
-  for (int i = num_names-1; i >= 0; i--) {
-//  for (int i = MAX_NUM_NAMES-1; i >= 0; i--) {
+  for (int i = 0; i < num_names; i++) {
     if (layer == list_layer[i]) {
-      char message[]="XXXXXXXXXX";
-      snprintf(message, 10, "i: %d", i);
-      APP_LOG(APP_LOG_LEVEL_INFO, message);
+      APP_LOG(APP_LOG_LEVEL_INFO, "i: %d", i);
+      APP_LOG(APP_LOG_LEVEL_INFO, "%d", last_int[order[i]]);
 #ifdef PBL_COLOR
       graphics_context_set_fill_color(context, (GColor){.argb = name_col[order[i]]});
 #else
@@ -419,25 +326,27 @@ static void list_update_proc(Layer *layer, GContext *context) {
       graphics_fill_rect(context, bounds, 0, GCornerNone);
       graphics_context_set_text_color(context, GColorWhite);
       graphics_draw_text(context, name_text[order[i]], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(PBL_IF_RECT_ELSE(10, 30),0,PBL_IF_RECT_ELSE(124, 120),29), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
-
-    if (last_int[order[i]] > 0) {
-//      text_layer_set_text_color(last_layer[i], GColorWhite);
-      graphics_draw_text(context, last_text[order[i]], fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(PBL_IF_RECT_ELSE(10, 30),0,PBL_IF_RECT_ELSE(124, 120),29), GTextOverflowModeFill, GTextAlignmentRight, NULL);
-//    } else {
-#ifdef PBL_COLOR
-//      text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-#else
-//      text_layer_set_text_color(last_layer[i], GColorBlack);
-#endif
+      
+      APP_LOG(APP_LOG_LEVEL_INFO, "update: %d, %d, %d, %s", i, order[i], last_int[order[i]], last_text[order[i]]);
+      
+      if (last_int[order[i]] > 0) {
+        int last_m = last_int[order[i]] / 100;
+        int last_d = last_int[order[i]] - last_m * 100;
+        APP_LOG(APP_LOG_LEVEL_INFO, "d m: %d %d", last_d, last_m);
+        if (date_format == 0) {
+          snprintf(last_text[order[i]], 6, "%d/%d", last_d, last_m);
+        } else {
+          snprintf(last_text[order[i]], 6, "%d/%d", last_m, last_d);
+        }
+        graphics_draw_text(context, last_text[order[i]], fonts_get_system_font(FONT_KEY_GOTHIC_24), GRect(PBL_IF_RECT_ELSE(10, 30),0,PBL_IF_RECT_ELSE(124, 120),29), GTextOverflowModeFill, GTextAlignmentRight, NULL);
       }
     }
   }
 }
 
 static void window_load(Window *window) {
-  char message[]="XXXXXXXXXX";
-  snprintf(message, 10, "mode1: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
+  
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode1: %d", mode);
 
 	window_set_click_config_provider(window, (ClickConfigProvider)click_config_provider);
 
@@ -458,31 +367,15 @@ static void window_load(Window *window) {
     }
     if (persist_exists(LAST_KEY + i)) {
       last_int[i] = persist_read_int(LAST_KEY + i);
-
-/*
-
-//      last_int[i] = 528 + i;
-      if (last_int[i] > 0) {
-        int last_m = last_int[i] / 100;
-        int last_d = last_int[i] - last_m * 100;
-        
-        if (date_format == 0) {
-          snprintf(last_text[i], 6, "%d/%d", last_d, last_m);
-        } else {
-          snprintf(last_text[i], 6, "%d/%d", last_m, last_d);
-        }
-      }
-
-*/
-
     }
+//    last_int[i] = 110 + i;
+    
 #ifdef PBL_COLOR
     name_col[i] = persist_exists(COLOR_KEY + i) ? persist_read_int(COLOR_KEY + i) : COLOR_DEFAULT;
 //    name_col[i] = COLOR_DEFAULT;
 #endif
   }
-  snprintf(message, 10, "mode2: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode2 : %d", mode);
 
   int cook_temp = cookie;
   for (int i = num_names-1; i >= 0; i--) {
@@ -505,56 +398,17 @@ static void window_load(Window *window) {
     x[i] = x[i-1];
     y[i] = y[i-1] + y_size;
   }
-  snprintf(message, 10, "mode3: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
+  
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode3: %d", mode);
   
   for (int i = MAX_NUM_NAMES-1; i >= 0; i--) {
     list_layer[i] = layer_create((GRect){.origin = {0, y[i] }, .size = {bounds.size.w, 29}});
     layer_set_update_proc(list_layer[i], list_update_proc);
-    name_layer[i] = text_layer_create((GRect){.origin = {x[i], 0 }, .size = {x_size, 29}});
-    last_layer[i] = text_layer_create((GRect){.origin = {0, 0 }, .size = {bounds.size.w-x[i], 29}});
-    text_layer_set_text_alignment(name_layer[i], GTextAlignmentLeft);
-    text_layer_set_text_alignment(last_layer[i], GTextAlignmentRight);
-    text_layer_set_font(name_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
-    text_layer_set_font(last_layer[i], fonts_get_system_font(FONT_KEY_GOTHIC_24));
-    
-    text_layer_set_background_color(name_layer[i], GColorClear);
-    text_layer_set_background_color(last_layer[i], GColorClear);
-
-/*
-#ifdef PBL_COLOR
-    text_layer_set_background_color(name_layer[i], (GColor){.argb = name_col[order[i]]});
-    text_layer_set_background_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-#else
-    text_layer_set_background_color(name_layer[i], GColorBlack);
-    text_layer_set_background_color(last_layer[i], GColorBlack);
-#endif
-*/
-    text_layer_set_text_color(name_layer[i], GColorWhite);
-    text_layer_set_text_color(last_layer[i], GColorWhite);
-/*
-    if (last_int[order[i]] > 0 ) {
-      text_layer_set_text_color(last_layer[i], GColorWhite);
-    } else {
-#ifdef PBL_COLOR
-    text_layer_set_text_color(last_layer[i], (GColor){.argb = name_col[order[i]]});
-#else
-    text_layer_set_text_color(last_layer[i], GColorBlack);
-#endif
-    }
-*/
-    if (i < num_names) {
-//      text_layer_set_text(name_layer[i], name_text[order[i]]);
-//    text_layer_set_text(last_layer[i], last_text[order[i]]);
-    }
     layer_add_child(window_layer, list_layer[i]);
-//    layer_add_child(list_layer[i], text_layer_get_layer(last_layer[i]));
-//    layer_add_child(list_layer[i], text_layer_get_layer(name_layer[i]));
   }
-
-  snprintf(message, 10, "mode4: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
-
+  
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode4: %d", mode);
+  
   text_layer = text_layer_create((GRect){.origin = {0, 0}, .size = {bounds.size.w, 29}});
   text_layer_set_text(text_layer, MODES[mode]);
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
@@ -563,21 +417,17 @@ static void window_load(Window *window) {
   text_layer_set_text_color(text_layer, GColorBlack);
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
   
-  snprintf(message, 10, "mode5: %d", mode);
-  APP_LOG(APP_LOG_LEVEL_INFO, message);
-
-
+  APP_LOG(APP_LOG_LEVEL_INFO, "mode5:%d", mode);
+  
   draw_layer = layer_create(bounds);//0, 0, bounds.size.w, bounds.size.h));
   layer_set_update_proc(draw_layer, draw_update_proc);
   layer_add_child(window_layer, draw_layer);
   
-  write_dates();
   write_names();
 }
 
 void window_unload(Window *window) {
-  char message[]="XXXXXXXXXXXXXXXXXXXX";
-
+  
   APP_LOG(APP_LOG_LEVEL_INFO, "unload1");
   persist_write_int(COOKIE_KEY, cookie);
   APP_LOG(APP_LOG_LEVEL_INFO, "unload2");
@@ -586,9 +436,8 @@ void window_unload(Window *window) {
   persist_write_int(DATE_KEY, date_format);
   APP_LOG(APP_LOG_LEVEL_INFO, "unload4");
   for (int i = 0; i < num_names; i++) {
-    snprintf(message, 10, "unload:%d", i);
-    APP_LOG(APP_LOG_LEVEL_INFO, message);
-
+    APP_LOG(APP_LOG_LEVEL_INFO, "unload:%d", i);
+    
     persist_write_string(NAME_KEY + i, name_text[i]);
     if (last_int[i] > 0) persist_write_int(LAST_KEY + i, last_int[i]);
 #ifdef PBL_COLOR
@@ -602,8 +451,6 @@ void window_unload(Window *window) {
   APP_LOG(APP_LOG_LEVEL_INFO, "unload6");
   for (int i = 0; i < MAX_NUM_NAMES; i++) {
     layer_destroy(list_layer[i]);
-    text_layer_destroy(name_layer[i]);
-    text_layer_destroy(last_layer[i]);
   }
   APP_LOG(APP_LOG_LEVEL_INFO, "unload7");
   layer_destroy(draw_layer);
